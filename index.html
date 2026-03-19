@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ツムツム風ゲーム</title>
+<style>
+    body {
+        text-align: center;
+        font-family: Arial;
+        background: #87cefa;
+    }
+
+    h1 {
+        margin-top: 20px;
+    }
+
+    #game {
+        width: 300px;
+        height: 300px;
+        margin: 20px auto;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 5px;
+    }
+
+    .cell {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .red { background: #ff6b6b; }
+    .blue { background: #4dabf7; }
+    .green { background: #51cf66; }
+    .yellow { background: #ffd43b; }
+
+    #score {
+        font-size: 20px;
+        margin-top: 10px;
+    }
+</style>
+</head>
+<body>
+
+<h1>🧸 ツムツム風ゲーム</h1>
+<div id="score">スコア: 0</div>
+<div id="game"></div>
+
+<script>
+const size = 6;
+const colors = ["red", "blue", "green", "yellow"];
+let grid = [];
+let score = 0;
+
+function createGrid() {
+    grid = [];
+    for (let i = 0; i < size * size; i++) {
+        grid.push(colors[Math.floor(Math.random() * colors.length)]);
+    }
+}
+
+function drawGrid() {
+    const game = document.getElementById("game");
+    game.innerHTML = "";
+
+    grid.forEach((color, index) => {
+        const div = document.createElement("div");
+        div.className = "cell " + color;
+        div.addEventListener("click", () => removeGroup(index));
+        game.appendChild(div);
+    });
+}
+
+function getNeighbors(index, color, visited = new Set()) {
+    if (visited.has(index)) return visited;
+    if (grid[index] !== color) return visited;
+
+    visited.add(index);
+
+    const x = index % size;
+    const y = Math.floor(index / size);
+
+    const directions = [
+        [x-1, y], [x+1, y],
+        [x, y-1], [x, y+1]
+    ];
+
+    directions.forEach(([nx, ny]) => {
+        if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
+            getNeighbors(ny * size + nx, color, visited);
+        }
+    });
+
+    return visited;
+}
+
+function removeGroup(index) {
+    const color = grid[index];
+    const group = getNeighbors(index, color);
+
+    if (group.size < 3) return; // 3個以上で消せる
+
+    group.forEach(i => {
+        grid[i] = null;
+    });
+
+    score += group.size * 10;
+    document.getElementById("score").innerText = "スコア: " + score;
+
+    dropTsum();
+    refill();
+    drawGrid();
+}
+
+function dropTsum() {
+    for (let x = 0; x < size; x++) {
+        let column = [];
+        for (let y = 0; y < size; y++) {
+            let val = grid[y * size + x];
+            if (val !== null) column.push(val);
+        }
+
+        while (column.length < size) {
+            column.unshift(null);
+        }
+
+        for (let y = 0; y < size; y++) {
+            grid[y * size + x] = column[y];
+        }
+    }
+}
+
+function refill() {
+    for (let i = 0; i < grid.length; i++) {
+        if (grid[i] === null) {
+            grid[i] = colors[Math.floor(Math.random() * colors.length)];
+        }
+    }
+}
+
+// 初期化
+createGrid();
+drawGrid();
+</script>
+
+</body>
+</html>
