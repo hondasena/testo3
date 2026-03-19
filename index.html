@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>リズムゲーム</title>
+<title>寿司打風ゲーム</title>
 <style>
 body {
     margin: 0;
-    background: #0d0d0d;
+    background: linear-gradient(#0f2027,#203a43,#2c5364);
     color: white;
-    text-align: center;
     font-family: Arial;
+    text-align: center;
 }
 
 h2 {
@@ -18,220 +18,159 @@ h2 {
 
 #game {
     position: relative;
-    width: 320px;
-    height: 520px;
-    margin: 10px auto;
-    background: #1a1a1a;
-    border: 3px solid #444;
+    width: 600px;
+    height: 200px;
+    margin: 20px auto;
+    background: #111;
     overflow: hidden;
+    border: 3px solid #444;
 }
 
-.lane {
+.word {
     position: absolute;
-    width: 25%;
-    height: 100%;
-    border-left: 1px solid #333;
+    font-size: 24px;
+    white-space: nowrap;
 }
 
-.lane.active {
-    background: rgba(0,255,255,0.3);
-}
-
-.lane:nth-child(1){left:0}
-.lane:nth-child(2){left:25%}
-.lane:nth-child(3){left:50%}
-.lane:nth-child(4){left:75%}
-
-.note {
-    position: absolute;
-    width: 100%;
-    height: 18px;
-    background: cyan;
-    border-radius: 5px;
-}
-
-#hitLine {
-    position: absolute;
-    bottom: 70px;
-    width: 100%;
-    height: 4px;
-    background: red;
-}
-
-#judge {
-    height: 30px;
-    font-size: 22px;
+#inputBox {
+    font-size: 20px;
+    padding: 5px;
+    width: 300px;
 }
 
 #ui {
-    margin-top: 5px;
-}
-
-button {
-    padding: 10px 20px;
-    margin: 5px;
-    font-size: 16px;
+    margin-top: 10px;
 }
 </style>
 </head>
 <body>
 
-<h2>🎵 リズムゲーム</h2>
+<h2>🍣 寿司打風タイピングゲーム</h2>
 <button id="startBtn">スタート</button>
 
-<div id="game">
-    <div class="lane" data-lane="0"></div>
-    <div class="lane" data-lane="1"></div>
-    <div class="lane" data-lane="2"></div>
-    <div class="lane" data-lane="3"></div>
-    <div id="hitLine"></div>
-</div>
+<div id="game"></div>
 
-<div id="judge"></div>
+<input id="inputBox" placeholder="ここに入力..." autocomplete="off">
 
 <div id="ui">
     スコア: <span id="score">0</span><br>
     コンボ: <span id="combo">0</span><br>
-    キー: D F J K / タップOK
+    残り時間: <span id="time">30</span>
 </div>
 
-<audio id="music" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
-
 <script>
-const lanes = 4;
-const keys = ["d","f","j","k"];
-const game = document.getElementById("game");
-const music = document.getElementById("music");
+const wordsList = [
+    "sushi","maguro","salmon","ebi","tamago",
+    "ikura","uni","anago","hamachi","tuna",
+    "rice","nori","wasabi","soy","tempura"
+];
 
-let notes = [];
+let words = [];
 let score = 0;
 let combo = 0;
-let startTime = 0;
+let time = 30;
+let playing = false;
 
-// シンプル譜面（ms）
-const chart = [];
-for(let i=0;i<50;i++){
-    chart.push({
-        time: i*600 + 1000,
-        lane: Math.floor(Math.random()*4)
+// 単語生成
+function spawnWord(){
+    const text = wordsList[Math.floor(Math.random()*wordsList.length)];
+    const div = document.createElement("div");
+    div.className = "word";
+    div.innerText = text;
+    div.style.left = "600px";
+    div.style.top = Math.random()*150 + "px";
+
+    document.getElementById("game").appendChild(div);
+
+    words.push({
+        el: div,
+        text: text,
+        x: 600
     });
 }
 
-// ノーツ生成
-function spawnNote(data){
-    const note = document.createElement("div");
-    note.className = "note";
-    note.style.left = (data.lane*25)+"%";
-    game.appendChild(note);
-
-    notes.push({
-        el: note,
-        lane: data.lane,
-        time: data.time,
-        y: 0,
-        hit: false
-    });
-}
-
-// 判定
-function getJudge(diff){
-    diff = Math.abs(diff);
-    if(diff < 80) return "Perfect";
-    if(diff < 160) return "Great";
-    if(diff < 250) return "Good";
-    return "Miss";
-}
-
-// 更新
+// 更新処理
 function update(){
-    let now = performance.now() - startTime;
+    if(!playing) return;
 
-    chart.forEach(n=>{
-        if(!n.spawned && now > n.time-1500){
-            spawnNote(n);
-            n.spawned = true;
-        }
-    });
+    words.forEach((w,i)=>{
+        w.x -= 2;
+        w.el.style.left = w.x + "px";
 
-    notes.forEach((n,i)=>{
-        let t = now - n.time;
-        n.y = t*0.35 + 300;
-        n.el.style.top = n.y + "px";
-
-        if(n.y > 550 && !n.hit){
-            n.el.remove();
-            notes.splice(i,1);
+        // 逃した
+        if(w.x < -100){
+            w.el.remove();
+            words.splice(i,1);
             combo = 0;
-            updateUI("Miss");
         }
     });
 
     requestAnimationFrame(update);
 }
 
-// 入力処理
-function hitLane(lane){
-    let laneEl = document.querySelectorAll(".lane")[lane];
-    laneEl.classList.add("active");
-    setTimeout(()=>laneEl.classList.remove("active"),100);
+// 入力判定
+document.getElementById("inputBox").addEventListener("input",(e)=>{
+    const val = e.target.value;
 
-    let now = performance.now() - startTime;
+    for(let i=0;i<words.length;i++){
+        if(words[i].text === val){
+            words[i].el.remove();
+            words.splice(i,1);
 
-    for(let i=0;i<notes.length;i++){
-        let n = notes[i];
-        if(n.lane === lane){
-            let diff = now - n.time;
-            let result = getJudge(diff);
+            score += 100 * (combo+1);
+            combo++;
 
-            if(result !== "Miss"){
-                n.el.remove();
-                notes.splice(i,1);
-
-                combo++;
-                score += (result==="Perfect"?300:result==="Great"?150:50) * combo;
-
-                updateUI(result);
-                return;
-            }
+            e.target.value = "";
+            updateUI();
+            return;
         }
     }
-
-    combo = 0;
-    updateUI("Miss");
-}
-
-// キーボード
-document.addEventListener("keydown",(e)=>{
-    let lane = keys.indexOf(e.key);
-    if(lane !== -1) hitLane(lane);
-});
-
-// タップ対応
-document.querySelectorAll(".lane").forEach(l=>{
-    l.addEventListener("click",()=>{
-        hitLane(parseInt(l.dataset.lane));
-    });
 });
 
 // UI更新
-function updateUI(text){
+function updateUI(){
     document.getElementById("score").innerText = score;
     document.getElementById("combo").innerText = combo;
-    document.getElementById("judge").innerText = text;
+}
+
+// タイマー
+function startTimer(){
+    const timer = setInterval(()=>{
+        if(!playing){
+            clearInterval(timer);
+            return;
+        }
+
+        time--;
+        document.getElementById("time").innerText = time;
+
+        if(time <= 0){
+            playing = false;
+            alert("終了！スコア: " + score);
+            clearInterval(timer);
+        }
+    },1000);
 }
 
 // スタート
 document.getElementById("startBtn").onclick = ()=>{
-    notes = [];
+    words = [];
     score = 0;
     combo = 0;
-    chart.forEach(n=>n.spawned=false);
+    time = 30;
+    playing = true;
 
-    startTime = performance.now();
-    music.currentTime = 0;
-    music.play();
+    document.getElementById("game").innerHTML = "";
+    updateUI();
+    document.getElementById("time").innerText = time;
+    document.getElementById("inputBox").focus();
+
+    setInterval(()=>{
+        if(playing) spawnWord();
+    },1500);
 
     update();
+    startTimer();
 };
 </script>
 
