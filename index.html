@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>寿司打風ゲーム</title>
+<title>寿司打風 都道府県タイピング</title>
 <style>
 body {
     margin: 0;
@@ -18,8 +18,8 @@ h2 {
 
 #game {
     position: relative;
-    width: 600px;
-    height: 200px;
+    width: 700px;
+    height: 220px;
     margin: 20px auto;
     background: #111;
     overflow: hidden;
@@ -28,14 +28,14 @@ h2 {
 
 .word {
     position: absolute;
-    font-size: 24px;
+    font-size: 22px;
     white-space: nowrap;
 }
 
 #inputBox {
     font-size: 20px;
     padding: 5px;
-    width: 300px;
+    width: 320px;
 }
 
 #ui {
@@ -45,12 +45,12 @@ h2 {
 </head>
 <body>
 
-<h2>🍣 寿司打風タイピングゲーム</h2>
+<h2>🍣 都道府県タイピングゲーム</h2>
 <button id="startBtn">スタート</button>
 
 <div id="game"></div>
 
-<input id="inputBox" placeholder="ここに入力..." autocomplete="off">
+<input id="inputBox" placeholder="ローマ字で入力..." autocomplete="off">
 
 <div id="ui">
     スコア: <span id="score">0</span><br>
@@ -59,10 +59,17 @@ h2 {
 </div>
 
 <script>
+// 47都道府県（ローマ字）
 const wordsList = [
-    "sushi","maguro","salmon","ebi","tamago",
-    "ikura","uni","anago","hamachi","tuna",
-    "rice","nori","wasabi","soy","tempura"
+"hokkaido","aomori","iwate","miyagi","akita","yamagata","fukushima",
+"ibaraki","tochigi","gunma","saitama","chiba","tokyo","kanagawa",
+"niigata","toyama","ishikawa","fukui","yamanashi","nagano",
+"gifu","shizuoka","aichi","mie",
+"shiga","kyoto","osaka","hyogo","nara","wakayama",
+"tottori","shimane","okayama","hiroshima","yamaguchi",
+"tokushima","kagawa","ehime","kochi",
+"fukuoka","saga","nagasaki","kumamoto","oita","miyazaki","kagoshima",
+"okinawa"
 ];
 
 let words = [];
@@ -77,28 +84,27 @@ function spawnWord(){
     const div = document.createElement("div");
     div.className = "word";
     div.innerText = text;
-    div.style.left = "600px";
-    div.style.top = Math.random()*150 + "px";
+    div.style.left = "700px";
+    div.style.top = Math.random()*170 + "px";
 
     document.getElementById("game").appendChild(div);
 
     words.push({
         el: div,
         text: text,
-        x: 600
+        x: 700
     });
 }
 
-// 更新処理
+// 更新
 function update(){
     if(!playing) return;
 
     words.forEach((w,i)=>{
-        w.x -= 2;
+        w.x -= 2.5;
         w.el.style.left = w.x + "px";
 
-        // 逃した
-        if(w.x < -100){
+        if(w.x < -150){
             w.el.remove();
             words.splice(i,1);
             combo = 0;
@@ -110,14 +116,14 @@ function update(){
 
 // 入力判定
 document.getElementById("inputBox").addEventListener("input",(e)=>{
-    const val = e.target.value;
+    const val = e.target.value.toLowerCase();
 
     for(let i=0;i<words.length;i++){
         if(words[i].text === val){
             words[i].el.remove();
             words.splice(i,1);
 
-            score += 100 * (combo+1);
+            score += 150 * (combo+1);
             combo++;
 
             e.target.value = "";
@@ -167,7 +173,7 @@ document.getElementById("startBtn").onclick = ()=>{
 
     setInterval(()=>{
         if(playing) spawnWord();
-    },1500);
+    },1300);
 
     update();
     startTimer();
