@@ -12,10 +12,6 @@ body {
     text-align: center;
 }
 
-h2 {
-    margin: 10px;
-}
-
 #game {
     position: relative;
     width: 700px;
@@ -38,9 +34,6 @@ h2 {
     width: 320px;
 }
 
-#ui {
-    margin-top: 10px;
-}
 </style>
 </head>
 <body>
@@ -52,14 +45,13 @@ h2 {
 
 <input id="inputBox" placeholder="ローマ字で入力..." autocomplete="off">
 
-<div id="ui">
-    スコア: <span id="score">0</span><br>
-    コンボ: <span id="combo">0</span><br>
-    残り時間: <span id="time">30</span>
+<div>
+スコア: <span id="score">0</span> |
+コンボ: <span id="combo">0</span> |
+残り時間: <span id="time">30</span>
 </div>
 
 <script>
-// 47都道府県（ローマ字）
 const wordsList = [
 "hokkaido","aomori","iwate","miyagi","akita","yamagata","fukushima",
 "ibaraki","tochigi","gunma","saitama","chiba","tokyo","kanagawa",
@@ -96,12 +88,12 @@ function spawnWord(){
     });
 }
 
-// 更新
+// 更新（スピードゆっくり）
 function update(){
     if(!playing) return;
 
     words.forEach((w,i)=>{
-        w.x -= 2.5;
+        w.x -= 1.8; // ←ここを遅くした
         w.el.style.left = w.x + "px";
 
         if(w.x < -150){
@@ -126,7 +118,9 @@ document.getElementById("inputBox").addEventListener("input",(e)=>{
             score += 150 * (combo+1);
             combo++;
 
+            // 入力を消す
             e.target.value = "";
+
             updateUI();
             return;
         }
@@ -169,11 +163,12 @@ document.getElementById("startBtn").onclick = ()=>{
     document.getElementById("game").innerHTML = "";
     updateUI();
     document.getElementById("time").innerText = time;
+    document.getElementById("inputBox").value = "";
     document.getElementById("inputBox").focus();
 
     setInterval(()=>{
         if(playing) spawnWord();
-    },1300);
+    },1500);
 
     update();
     startTimer();
