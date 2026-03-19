@@ -2,146 +2,214 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ツムツム風ゲーム</title>
+<title>本格音ゲー風ゲーム</title>
 <style>
-    body {
-        text-align: center;
-        font-family: Arial;
-        background: #87cefa;
-    }
+body {
+    margin: 0;
+    background: #000;
+    color: white;
+    text-align: center;
+    font-family: Arial;
+}
 
-    h1 {
-        margin-top: 20px;
-    }
+#game {
+    position: relative;
+    width: 320px;
+    height: 520px;
+    margin: 20px auto;
+    background: #111;
+    border: 3px solid #555;
+    overflow: hidden;
+}
 
-    #game {
-        width: 300px;
-        height: 300px;
-        margin: 20px auto;
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 5px;
-    }
+.lane {
+    position: absolute;
+    width: 25%;
+    height: 100%;
+    border-left: 1px solid #333;
+    transition: background 0.1s;
+}
 
-    .cell {
-        width: 45px;
-        height: 45px;
-        border-radius: 50%;
-        cursor: pointer;
-    }
+.lane.active {
+    background: rgba(0,255,255,0.3);
+}
 
-    .red { background: #ff6b6b; }
-    .blue { background: #4dabf7; }
-    .green { background: #51cf66; }
-    .yellow { background: #ffd43b; }
+.lane:nth-child(1){left:0}
+.lane:nth-child(2){left:25%}
+.lane:nth-child(3){left:50%}
+.lane:nth-child(4){left:75%}
 
-    #score {
-        font-size: 20px;
-        margin-top: 10px;
-    }
+.note {
+    position: absolute;
+    width: 100%;
+    height: 20px;
+    background: cyan;
+    border-radius: 5px;
+}
+
+.hold {
+    background: orange;
+}
+
+#hitLine {
+    position: absolute;
+    bottom: 60px;
+    width: 100%;
+    height: 5px;
+    background: red;
+}
+
+#judge {
+    font-size: 24px;
+    height: 30px;
+}
+
 </style>
 </head>
 <body>
 
-<h1>🧸 ツムツム風ゲーム</h1>
-<div id="score">スコア: 0</div>
-<div id="game"></div>
+<h2>🎵 本格音ゲー風</h2>
+<button id="startBtn">スタート</button>
+
+<div id="game">
+    <div class="lane"></div>
+    <div class="lane"></div>
+    <div class="lane"></div>
+    <div class="lane"></div>
+    <div id="hitLine"></div>
+</div>
+
+<div id="judge"></div>
+<div>スコア: <span id="score">0</span></div>
+<div>コンボ: <span id="combo">0</span></div>
+<div>キー: D F J K</div>
+
+<audio id="music" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
 
 <script>
-const size = 6;
-const colors = ["red", "blue", "green", "yellow"];
-let grid = [];
+const lanes = 4;
+const keys = ["d","f","j","k"];
+const game = document.getElementById("game");
+const music = document.getElementById("music");
+
+let notes = [];
 let score = 0;
+let combo = 0;
+let startTime = 0;
 
-function createGrid() {
-    grid = [];
-    for (let i = 0; i < size * size; i++) {
-        grid.push(colors[Math.floor(Math.random() * colors.length)]);
+// 譜面（時間ms）
+const chart = [
+    {time:1000, lane:0},
+    {time:1500, lane:1},
+    {time:2000, lane:2, hold:1000},
+    {time:3000, lane:3},
+    {time:3500, lane:1},
+    {time:4000, lane:2}
+];
+
+// ノーツ生成
+function spawnNote(data){
+    const note = document.createElement("div");
+    note.className = "note";
+    note.style.left = (data.lane*25)+"%";
+
+    if(data.hold){
+        note.classList.add("hold");
+        note.style.height = data.hold/5 + "px";
     }
-}
 
-function drawGrid() {
-    const game = document.getElementById("game");
-    game.innerHTML = "";
+    game.appendChild(note);
 
-    grid.forEach((color, index) => {
-        const div = document.createElement("div");
-        div.className = "cell " + color;
-        div.addEventListener("click", () => removeGroup(index));
-        game.appendChild(div);
+    notes.push({
+        el:note,
+        lane:data.lane,
+        y:0,
+        time:data.time,
+        hold:data.hold || 0,
+        hit:false
     });
 }
 
-function getNeighbors(index, color, visited = new Set()) {
-    if (visited.has(index)) return visited;
-    if (grid[index] !== color) return visited;
+// 判定
+function judge(diff){
+    if(Math.abs(diff)<100) return "Perfect";
+    if(Math.abs(diff)<200) return "Great";
+    return "Miss";
+}
 
-    visited.add(index);
+// 更新
+function update(){
+    let now = performance.now() - startTime;
 
-    const x = index % size;
-    const y = Math.floor(index / size);
-
-    const directions = [
-        [x-1, y], [x+1, y],
-        [x, y-1], [x, y+1]
-    ];
-
-    directions.forEach(([nx, ny]) => {
-        if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
-            getNeighbors(ny * size + nx, color, visited);
+    // 譜面生成
+    chart.forEach(n=>{
+        if(!n.spawned && now > n.time-1500){
+            spawnNote(n);
+            n.spawned = true;
         }
     });
 
-    return visited;
-}
+    notes.forEach((n,i)=>{
+        let t = now - n.time;
+        n.y = t*0.3 + 300;
+        n.el.style.top = n.y+"px";
 
-function removeGroup(index) {
-    const color = grid[index];
-    const group = getNeighbors(index, color);
-
-    if (group.size < 3) return; // 3個以上で消せる
-
-    group.forEach(i => {
-        grid[i] = null;
+        if(n.y>520 && !n.hit){
+            combo = 0;
+            notes.splice(i,1);
+            n.el.remove();
+            updateUI("Miss");
+        }
     });
 
-    score += group.size * 10;
-    document.getElementById("score").innerText = "スコア: " + score;
-
-    dropTsum();
-    refill();
-    drawGrid();
+    requestAnimationFrame(update);
 }
 
-function dropTsum() {
-    for (let x = 0; x < size; x++) {
-        let column = [];
-        for (let y = 0; y < size; y++) {
-            let val = grid[y * size + x];
-            if (val !== null) column.push(val);
-        }
+// 入力
+document.addEventListener("keydown",(e)=>{
+    let lane = keys.indexOf(e.key);
+    if(lane===-1) return;
 
-        while (column.length < size) {
-            column.unshift(null);
-        }
+    document.querySelectorAll(".lane")[lane].classList.add("active");
+    setTimeout(()=>document.querySelectorAll(".lane")[lane].classList.remove("active"),100);
 
-        for (let y = 0; y < size; y++) {
-            grid[y * size + x] = column[y];
+    let now = performance.now() - startTime;
+
+    for(let i=0;i<notes.length;i++){
+        let n = notes[i];
+        if(n.lane===lane){
+            let diff = now - n.time;
+            let result = judge(diff);
+
+            if(result!=="Miss"){
+                n.el.remove();
+                notes.splice(i,1);
+                combo++;
+                score += (result==="Perfect"?300:100)*combo;
+                updateUI(result);
+                return;
+            }
         }
     }
+
+    combo=0;
+    updateUI("Miss");
+});
+
+// UI更新
+function updateUI(text){
+    document.getElementById("score").innerText = score;
+    document.getElementById("combo").innerText = combo;
+    document.getElementById("judge").innerText = text;
 }
 
-function refill() {
-    for (let i = 0; i < grid.length; i++) {
-        if (grid[i] === null) {
-            grid[i] = colors[Math.floor(Math.random() * colors.length)];
-        }
-    }
-}
-
-// 初期化
-createGrid();
-drawGrid();
+// スタート
+document.getElementById("startBtn").onclick=()=>{
+    startTime = performance.now();
+    music.currentTime = 0;
+    music.play();
+    update();
+};
 </script>
 
 </body>
