@@ -2,23 +2,27 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>本格音ゲー風ゲーム</title>
+<title>リズムゲーム</title>
 <style>
 body {
     margin: 0;
-    background: #000;
+    background: #0d0d0d;
     color: white;
     text-align: center;
     font-family: Arial;
+}
+
+h2 {
+    margin: 10px;
 }
 
 #game {
     position: relative;
     width: 320px;
     height: 520px;
-    margin: 20px auto;
-    background: #111;
-    border: 3px solid #555;
+    margin: 10px auto;
+    background: #1a1a1a;
+    border: 3px solid #444;
     overflow: hidden;
 }
 
@@ -27,7 +31,6 @@ body {
     width: 25%;
     height: 100%;
     border-left: 1px solid #333;
-    transition: background 0.1s;
 }
 
 .lane.active {
@@ -42,47 +45,55 @@ body {
 .note {
     position: absolute;
     width: 100%;
-    height: 20px;
+    height: 18px;
     background: cyan;
     border-radius: 5px;
 }
 
-.hold {
-    background: orange;
-}
-
 #hitLine {
     position: absolute;
-    bottom: 60px;
+    bottom: 70px;
     width: 100%;
-    height: 5px;
+    height: 4px;
     background: red;
 }
 
 #judge {
-    font-size: 24px;
     height: 30px;
+    font-size: 22px;
 }
 
+#ui {
+    margin-top: 5px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 16px;
+}
 </style>
 </head>
 <body>
 
-<h2>🎵 本格音ゲー風</h2>
+<h2>🎵 リズムゲーム</h2>
 <button id="startBtn">スタート</button>
 
 <div id="game">
-    <div class="lane"></div>
-    <div class="lane"></div>
-    <div class="lane"></div>
-    <div class="lane"></div>
+    <div class="lane" data-lane="0"></div>
+    <div class="lane" data-lane="1"></div>
+    <div class="lane" data-lane="2"></div>
+    <div class="lane" data-lane="3"></div>
     <div id="hitLine"></div>
 </div>
 
 <div id="judge"></div>
-<div>スコア: <span id="score">0</span></div>
-<div>コンボ: <span id="combo">0</span></div>
-<div>キー: D F J K</div>
+
+<div id="ui">
+    スコア: <span id="score">0</span><br>
+    コンボ: <span id="combo">0</span><br>
+    キー: D F J K / タップOK
+</div>
 
 <audio id="music" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"></audio>
 
@@ -97,43 +108,37 @@ let score = 0;
 let combo = 0;
 let startTime = 0;
 
-// 譜面（時間ms）
-const chart = [
-    {time:1000, lane:0},
-    {time:1500, lane:1},
-    {time:2000, lane:2, hold:1000},
-    {time:3000, lane:3},
-    {time:3500, lane:1},
-    {time:4000, lane:2}
-];
+// シンプル譜面（ms）
+const chart = [];
+for(let i=0;i<50;i++){
+    chart.push({
+        time: i*600 + 1000,
+        lane: Math.floor(Math.random()*4)
+    });
+}
 
 // ノーツ生成
 function spawnNote(data){
     const note = document.createElement("div");
     note.className = "note";
     note.style.left = (data.lane*25)+"%";
-
-    if(data.hold){
-        note.classList.add("hold");
-        note.style.height = data.hold/5 + "px";
-    }
-
     game.appendChild(note);
 
     notes.push({
-        el:note,
-        lane:data.lane,
-        y:0,
-        time:data.time,
-        hold:data.hold || 0,
-        hit:false
+        el: note,
+        lane: data.lane,
+        time: data.time,
+        y: 0,
+        hit: false
     });
 }
 
 // 判定
-function judge(diff){
-    if(Math.abs(diff)<100) return "Perfect";
-    if(Math.abs(diff)<200) return "Great";
+function getJudge(diff){
+    diff = Math.abs(diff);
+    if(diff < 80) return "Perfect";
+    if(diff < 160) return "Great";
+    if(diff < 250) return "Good";
     return "Miss";
 }
 
@@ -141,7 +146,6 @@ function judge(diff){
 function update(){
     let now = performance.now() - startTime;
 
-    // 譜面生成
     chart.forEach(n=>{
         if(!n.spawned && now > n.time-1500){
             spawnNote(n);
@@ -151,13 +155,13 @@ function update(){
 
     notes.forEach((n,i)=>{
         let t = now - n.time;
-        n.y = t*0.3 + 300;
-        n.el.style.top = n.y+"px";
+        n.y = t*0.35 + 300;
+        n.el.style.top = n.y + "px";
 
-        if(n.y>520 && !n.hit){
-            combo = 0;
-            notes.splice(i,1);
+        if(n.y > 550 && !n.hit){
             n.el.remove();
+            notes.splice(i,1);
+            combo = 0;
             updateUI("Miss");
         }
     });
@@ -165,35 +169,48 @@ function update(){
     requestAnimationFrame(update);
 }
 
-// 入力
-document.addEventListener("keydown",(e)=>{
-    let lane = keys.indexOf(e.key);
-    if(lane===-1) return;
-
-    document.querySelectorAll(".lane")[lane].classList.add("active");
-    setTimeout(()=>document.querySelectorAll(".lane")[lane].classList.remove("active"),100);
+// 入力処理
+function hitLane(lane){
+    let laneEl = document.querySelectorAll(".lane")[lane];
+    laneEl.classList.add("active");
+    setTimeout(()=>laneEl.classList.remove("active"),100);
 
     let now = performance.now() - startTime;
 
     for(let i=0;i<notes.length;i++){
         let n = notes[i];
-        if(n.lane===lane){
+        if(n.lane === lane){
             let diff = now - n.time;
-            let result = judge(diff);
+            let result = getJudge(diff);
 
-            if(result!=="Miss"){
+            if(result !== "Miss"){
                 n.el.remove();
                 notes.splice(i,1);
+
                 combo++;
-                score += (result==="Perfect"?300:100)*combo;
+                score += (result==="Perfect"?300:result==="Great"?150:50) * combo;
+
                 updateUI(result);
                 return;
             }
         }
     }
 
-    combo=0;
+    combo = 0;
     updateUI("Miss");
+}
+
+// キーボード
+document.addEventListener("keydown",(e)=>{
+    let lane = keys.indexOf(e.key);
+    if(lane !== -1) hitLane(lane);
+});
+
+// タップ対応
+document.querySelectorAll(".lane").forEach(l=>{
+    l.addEventListener("click",()=>{
+        hitLane(parseInt(l.dataset.lane));
+    });
 });
 
 // UI更新
@@ -204,10 +221,16 @@ function updateUI(text){
 }
 
 // スタート
-document.getElementById("startBtn").onclick=()=>{
+document.getElementById("startBtn").onclick = ()=>{
+    notes = [];
+    score = 0;
+    combo = 0;
+    chart.forEach(n=>n.spawned=false);
+
     startTime = performance.now();
     music.currentTime = 0;
     music.play();
+
     update();
 };
 </script>
